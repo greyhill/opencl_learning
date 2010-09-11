@@ -1,0 +1,129 @@
+NOTES ON USING OPENCL
+==========================================================================
+
+Compiled 9/11/2010
+
+1. Installation
+--------------------------------------------------------------------------
+On (Ubuntu) Linux, OpenCL can be gotten from a few places:
+  a. For computers with supported nVidia graphics cards, the default
+    binary nVidia drivers support OpenCL and CUDA.  The package 
+    nvidia-current-dev will install the headers and libraries for
+    writing OpenCL code.  Tell the compiler to search 
+    /usr/include/nvidia-current in order to get access to the CL/
+    directory.  Link with -lOpenCl.
+  b. Computers with ATI graphics cards and those which will can only
+    run OpenCL on the processor (SSE2 required) will use the ATI
+    Stream software.  This needs to be installed from a package on the
+    ATI website: 
+      http://developer.amd.com/gpu/atistreamsdk/pages/default.aspx 
+
+2. Boilerplate
+--------------------------------------------------------------------------
+Some example code (including perhaps old stuff from Apple) won't run
+correctly on at least nVidia's OpenCL implementation.  Try to follow
+this guide when setting up an OpenCL application.
+
+/* proper error handling omitted for brevity */
+int err;
+
+/* a lot of OpenCL calls follow this idiom: call a function with
+  NULL arguments to learn how much space is required, then call again
+  using that argument to retrieve data structures */
+int num_platforms;
+cl_platform_id *platforms = NULL;
+err = clGetPlatformIDs(0, NULL, &num_platforms);
+platforms = malloc(sizeof(*platforms) * num_platforms);
+err = clGetPlatformIDs(num_platforms, platforms, NULL);
+
+/* now you can page through the platforms IDs if you want.  most likely,
+  you'll just want the first one if there even are multiple platforms
+  available */
+
+int num_devices;
+cl_device_id *devices = NULL;
+err = clGetDeviceIDs(platforms[0], 
+    CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_CPU, /* pick one */
+    0,
+    NULL,
+    &num_devices);
+devices = malloc(sizeof(*devices) * num_devices);
+err = clGetDeviceIDs(platforms[0],
+    CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_CPU,
+    num_devices,
+    devices,
+    NULL);
+
+/* again, now you can page through the available devices if you want */
+
+/* argument maps of sorts are passed around in OpenCL like this. */
+cl_context_properties context_props[] = 
+  { CL_CONTEXT_PLATFORM, platforms[0], 0 };
+cl_context context;
+context = clCreateContext(context_props, 
+    1, /* num_devices */
+    &devices[0], /* list of devices */
+    NULL, /* asynchronous error notification function. pretty cool */
+    &err);
+/* non-null context implies success */
+
+/* commands are issued to a device via a command queue. */
+cl_command_queue commands;
+commands = clCreateCommandQueue(context,
+    devices[0], /* choose some device here; it must be associated with the
+                  context passed as well */
+    0, /* bitwise option field.  As of 1.0 your options are:
+          CL_QUEUE_OUT_OF_ORDER_EXEC_MORE_ENABLE
+          CL_QUEUE_PROFILING_ENABLE */
+    &err);
+/* non-zero/NULL command queue implies success */
+
+/* now we go through the convoluted process of building the source.
+  it's also possible to load a precompiled binary into OpenCL.  here, 
+  we assume that the program source is either included in static memory
+  or has been loaded into buffer char *source. */
+cl_program program;
+clCreateProgramWithSource(context,
+  1, /* the number of char* in the following buffer */
+  &source,
+  NULL, /* implies all strings are NULL-terminated.  Same as 0 for an
+      individual string. */
+  &err);
+/* non-zero program result implies success */
+ 
+/* now we compile the thing.  we have the option of targeting the
+  compile to a number of specific devices, or we can pass 0 and NULL
+  to build for every device associated with the context (see above). 
+  
+  the options list is a string of options to pass to the compiler to
+  define macros, add include directories and turn on or off optimizations.
+  check the documentation: most of the optimizations are tradeoffs between
+  correctness and speed. 
+  
+  the callback argument allows the program to be built asynchronously; 
+  the clBuildProgram call won't block, and when compilation is complete,
+  the callback will be called.  the callback function signature is
+  void (*pfn_callback)(cl_program, void *user_data) */  
+err = clBuildProgram(program, 
+  0, /* num_devices */
+  NULL, /* device list */
+  NULL, /* options list */
+  NULL, /* callback */
+  NULL); /* user data for the callback */
+
+/* there's not much to note here other than that "kernelName" is the name
+  of one of the __kernel functions in the program compiler earlier */
+cl_kernel kernel;
+kernel = clCreateKernel(program, "kernelName", &err);
+/* the Apple source I'm looking at suggests that one should check for
+  both non-zero kernel and err == CL_SUCCESS to determine success */
+
+--------------------------------------------------------------------------
+
+That wraps up the boilerplate code for OpenCL.  Now we're going to cover
+setup and teardown of a particular OpenCL kernel invocation.
+
+--------------------------------------------------------------------------
+
+
+  
