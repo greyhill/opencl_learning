@@ -1,31 +1,41 @@
-NOTES ON USING OPENCL
-==========================================================================
+\documentclass{article}
+\usepackage{minted}
+\usepackage{fullpage}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{fourier}
+\title{OpenCL Notes}
+\author{Madison McGaffin}
+\begin{document}
 
-Compiled 9/11/2010
+\maketitle
 
---------------------------------------------------------------------------
-1. Installation
---------------------------------------------------------------------------
+\tableofcontents
+
+\section{Installation}
 On (Ubuntu) Linux, OpenCL can be gotten from a few places:
-  a. For computers with supported nVidia graphics cards, the default
+\begin{enumerate}
+  \item For computers with supported nVidia graphics cards, the default
     binary nVidia drivers support OpenCL and CUDA.  The package 
     nvidia-current-dev will install the headers and libraries for
     writing OpenCL code.  Tell the compiler to search 
     /usr/include/nvidia-current in order to get access to the CL/
     directory.  Link with -lOpenCl.
-  b. Computers with ATI graphics cards and those which will can only
+  \item Computers with ATI graphics cards and those which will can only
     run OpenCL on the processor (SSE2 required) will use the ATI
     Stream software.  This needs to be installed from a package on the
     ATI website: 
-      http://developer.amd.com/gpu/atistreamsdk/pages/default.aspx 
+      \url{http://developer.amd.com/gpu/atistreamsdk/pages/default.aspx}
+\end{enumerate}
 
---------------------------------------------------------------------------
-2. Boilerplate
---------------------------------------------------------------------------
+\section{Host code}
 Some example code (including perhaps old stuff from Apple) won't run
 correctly on at least nVidia's OpenCL implementation.  Try to follow
 this guide when setting up an OpenCL application.
 
+\subsection{Context and kernel setup boilerplate}
+
+\begin{minted}{c}
 /* proper error handling omitted for brevity */
 int err;
 
@@ -119,14 +129,11 @@ cl_kernel kernel;
 kernel = clCreateKernel(program, "kernelName", &err);
 /* the Apple source I'm looking at suggests that one should check for
   both non-zero kernel and err == CL_SUCCESS to determine success */
+\end{minted}
 
---------------------------------------------------------------------------
+\subsection{Buffer management and kernel invocation}
 
-That wraps up the boilerplate code for OpenCL.  Now we're going to cover
-setup and teardown of a particular OpenCL kernel invocation.
-
---------------------------------------------------------------------------
-
+\begin{minted}{c}
 /* first, buffer creation: */
 cl_mem buffer;
 buffer = clCreateBuffer(context,
@@ -214,24 +221,25 @@ err = clEnqueueNDRangeKernel(commands, /* command queue */
 
 /* wait until all enqueued commands have finished */
 err = clFinish(commands);
+\end{minted}
 
---------------------------------------------------------------------------
-
+\subsection{Reference counting}
 Finally, OpenCL does some internal reference counting.  Hooks to the 
 refcounting aparatus can be had by the following objects:
 
+\begin{minted}{c}
 cl[Release|Retain]MemObject
                   Program
                   Kernel
                   CommandQueue
                   Context
-
+\end{minted}
 When these objects are created, a retain is automatically performed on them.
 The caller inherits this reference.
 
---------------------------------------------------------------------------
-3. Writing OpenCL Kernels
---------------------------------------------------------------------------
-a. OpenCL Memory Spaces
-  
+\section{Kernel programming}
+\subsection{Address spaces}
+OpenCL 
+
+\end{document}
 
